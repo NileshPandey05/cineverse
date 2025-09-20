@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import axios from "axios";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SkeletonCard } from "@/components/SkeletonCard";
+import { TMDBMovie } from "@/types/tmdb";
+import ProtectedRoute from "@/components/ProctedRoute";
 
-export default function MoviesPage() {
-  const [movies, setMovies] = useState<any[]>([]);
+
+function MoviesPageContent() {
+  const [movies, setMovies] = useState<TMDBMovie[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -64,7 +67,7 @@ export default function MoviesPage() {
               <div
                 key={movie.id}
                 className="cursor-pointer group"
-                onClick={() => goToDetails(movie.id)}
+                onClick={() => goToDetails(String(movie.id))}
               >
                 <div className="relative w-full aspect-[2/3] rounded-lg overflow-hidden">
                   <Image
@@ -102,5 +105,15 @@ export default function MoviesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MoviesPage() {
+  return (
+    <ProtectedRoute>
+      <Suspense fallback={<SkeletonCard />}>
+        <MoviesPageContent />
+      </Suspense>
+    </ProtectedRoute>
   );
 }

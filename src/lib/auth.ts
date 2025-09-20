@@ -1,84 +1,80 @@
-import CredentialsProvider from "next-auth/providers/credentials"
-import { CredentialSchema } from "./types"
-import prisma from "./prisma"
-import bcrypt from "bcrypt"
+import CredentialsProvider from "next-auth/providers/credentials";
+import prisma from "./prisma";
+import bcrypt from "bcryptjs";
+import { CredentialSchema } from "./types";
+import { NextAuthOptions } from "next-auth";
 
+export const AuthOption: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        name: { label: "Name", type: "text", placeholder: "Username" },
+        email: { label: "Email", type: "text", placeholder: "xyz@gmail.com" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        try {
+          // Validate input using zod schema
+          const parsed = CredentialSchema.safeParse(credentials);
+          if (!parsed.success) throw new Error("Invalid credentials format");
 
-export const AuthOption = {
-    providers:[
-        CredentialsProvider({
-            name: 'Credentials',
-            credentials: {
-                name: { label: "Name", type: "text", placeholder: "Username"},
-                email: { label: "Email", type: "text", placeholder: "xyz@gmail.com" },
-                password: { label: "Password", type: "password" }
-            },
+          const { name, email, password } = parsed.data;
 
-            async authorize(credentials, req) {
-                try{
-                    const parsed = CredentialSchema.safeParse(credentials);
-                    if (!parsed.success) throw new Error("Invalid credentials format");
+          // Check if user already exists
+          const user = await prisma.user.findUnique({
+            where: { email },
+          });
 
-                    const { name, email, password } = parsed.data;
+          // If user not found → create new one
+          if (!user) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            const newUser = await prisma.user.create({
+              data: { name, email, password: hashedPassword },
+            });
 
-                    const user = await prisma.user.findUnique({
-                        where: {
-                            email
-                        }
-                    })
+            return { id: newUser.id, name: newUser.name, email: newUser.email };
+          }
 
-                    if(!user){
-                        const hashedPassword = await bcrypt.hash(password, 10)
+          // If user exists → check password
+          const isPasswordValid = await bcrypt.compare(password, user.password);
+          if (!isPasswordValid) throw new Error("Invalid email or password");
 
-                        const createUser = await prisma.user.create({
-                            data: {
-                                name, 
-                                email,
-                                password: hashedPassword
-                            }
-                        }) 
-                        return { id: createUser.id, name: createUser.name, email: createUser.email };
-                    }
+          return { id: user.id, name: user.name, email: user.email };
+        } catch (err) {
+          console.error("Auth Error:", err);
+          return null;
+        }
+      },
+    }),
+  ],
 
-                    const isPasswordValid = await bcrypt.compare(password, user.password)
+  session: {
+    strategy: "jwt",
+  },
 
-                    if (!isPasswordValid) {
-                        throw new Error("Invalid email or password");
-                    }
+  pages: {
+    signIn: "/signup",
+  },
 
-                    return { id: user.id, name: user.name, email: user.email };
-                }catch (err) {
-                    console.error("Auth Error:", err);
-                    return null;
-                }
-            }
-        })
-    ],
-    session: {
-        strategy: "jwt",
-    },
-    pages: {
-        signIn: '/signup',
-    },
-    callbacks: {
-    async jwt({ token, user }: { token: any; user?: any }) {
+  callbacks: {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
       }
-      console.log(token)
       return token;
     },
-    async session({ session, token }: { session: any; token: any }) {
-      if (token) {
-        session.user.id = token.id;
-        session.user.email = token.email;
-        session.user.name = token.name;
+    async session({ session, token }) {
+      if (session?.user) {
+        session.user.id = (token.id as string) ?? "";
+        session.user.email = token.email as string | undefined;
+        session.user.name = token.name as string | undefined;
       }
-      console.log(session)
       return session;
     },
   },
-  secret: process.env.AUTH_SECRET,
-}
+
+  secret: process.env.NEXTAUTH_SECRET,
+};

@@ -14,10 +14,30 @@ datasource db {
 }
 
 model User {
-  id Int @id @default(autoincrement())
-  name String
-  email String @unique
-  password String
+  id         String       @id @default(cuid())
+  name       String?
+  email      String       @unique
+  password   String
+  favorites  Favorite[]
+  watchlist  Watchlist[]
+}
 
-  createdAt DateTime @default(now())
+model Favorite {
+  id      String @id @default(cuid())
+  userId  String
+  movieId String
+  type    String
+  user    User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, movieId, type]) // prevent duplicates
+}
+
+model Watchlist {
+  id      String @id @default(cuid())
+  userId  String
+  movieId String
+  type    String
+  user    User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, movieId, type]) // prevent duplicates
 }

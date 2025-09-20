@@ -4,17 +4,25 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Image from "next/image";
+import { TMDBTVShow } from "@/types/tmdb";
+
+interface TMDBTVShowDetail extends TMDBTVShow {
+  created_by?: { id: number; name: string }[];
+  number_of_seasons?: number;
+  number_of_episodes?: number;
+  status?: string;
+}
 
 export default function TVShowDetail() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [show, setShow] = useState<any>(null);
+  const [show, setShow] = useState<TMDBTVShowDetail | null>(null);
   const [trailer, setTrailer] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchShow = async () => {
       try {
-        const res = await axios.get(
+        const res = await axios.get<TMDBTVShowDetail>(
           `${process.env.NEXT_PUBLIC_BASE_URL}/tv/${id}?api_key=${process.env.NEXT_PUBLIC_TMDB_API_KEY}&append_to_response=videos,credits`
         );
 
@@ -22,14 +30,14 @@ export default function TVShowDetail() {
 
         // Get the first trailer if available
         const videos = res.data.videos?.results || [];
-        const trailerVideo = videos.find((v: any) => v.type === "Trailer");
+        const trailerVideo = videos.find((v) => v.type === "Trailer");
         if (trailerVideo) setTrailer(trailerVideo.key);
       } catch (err) {
         console.error(err);
       }
     };
 
-    fetchShow();
+    if (id) fetchShow();
   }, [id]);
 
   if (!show) return <p className="text-white p-4">Loading...</p>;
@@ -53,14 +61,14 @@ export default function TVShowDetail() {
           <p className="text-gray-300">{show.overview}</p>
 
           <p>
-            <strong>Genres:</strong>{" "}
-            {show.genres?.map((g: any) => g.name).join(", ")}
+            <strong>Genres:</strong> {show.genres?.map((g) => g.name).join(", ")}
           </p>
 
-          <p>
-            <strong>Created By:</strong>{" "}
-            {show.created_by?.map((c: any) => c.name).join(", ")}
-          </p>
+          {show.created_by && (
+            <p>
+              <strong>Created By:</strong> {show.created_by.map((c) => c.name).join(", ")}
+            </p>
+          )}
 
           <p>
             <strong>Seasons:</strong> {show.number_of_seasons} |{" "}
@@ -73,7 +81,7 @@ export default function TVShowDetail() {
 
           <p>
             <strong>Production Companies:</strong>{" "}
-            {show.production_companies?.map((c: any) => c.name).join(", ")}
+            {show.production_companies?.map((c) => c.name).join(", ")}
           </p>
 
           <p>

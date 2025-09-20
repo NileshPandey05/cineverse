@@ -5,7 +5,12 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/pagination";
 
-export function ResponsiveSlider({ items, renderItem }: { items: any[]; renderItem: (item: any) => React.ReactNode }) {
+interface ResponsiveSliderProps<T> {
+  items: T[];
+  renderItem: (item: T) => React.ReactNode;
+}
+
+export function ResponsiveSlider<T>({ items, renderItem }: ResponsiveSliderProps<T>) {
   return (
     <Swiper
       modules={[Navigation, Pagination]}

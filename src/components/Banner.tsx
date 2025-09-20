@@ -11,17 +11,29 @@ import "swiper/css/pagination";
 import "swiper/css/navigation";
 import { useRouter } from "next/navigation";
 import { TrailerModal } from "./TrailerModal";
+import { TMDBMovie, TMDBTVShow } from "@/types/tmdb";
+
+type TMDBTrendingItem = (TMDBMovie | TMDBTVShow) & {
+  media_type: "movie" | "tv";
+};
+
+interface TMDBVideo {
+  id: string;
+  key: string;
+  site: string;
+  type: string;
+}
 
 export default function Banner() {
-  const [trending, setTrending] = useState<any[]>([]);
-  const [trailerKey, setTrailerKey] = useState("");
+  const [trending, setTrending] = useState<TMDBTrendingItem[]>([]);
+  const [trailerKey, setTrailerKey] = useState<string>("");
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const res = await axios.get(
+        const res = await axios.get<{ results: TMDBTrendingItem[] }>(
           `${process.env.NEXT_PUBLIC_BASE_URL}/trending/all/day`,
           {
             headers: {
@@ -29,7 +41,7 @@ export default function Banner() {
             },
           }
         );
-        setTrending(res.data.results.filter((m: any) => m.backdrop_path));
+        setTrending(res.data.results.filter((m) => m.backdrop_path));
       } catch (err) {
         console.error(err);
       }
@@ -37,9 +49,9 @@ export default function Banner() {
     fetchTrending();
   }, []);
 
-  const playTrailer = async (id: string, mediaType: string) => {
+  const playTrailer = async (id: number, mediaType: "movie" | "tv") => {
     try {
-      const res = await axios.get(
+      const res = await axios.get<{ results: TMDBVideo[] }>(
         `${process.env.NEXT_PUBLIC_BASE_URL}/${mediaType}/${id}/videos`,
         {
           headers: {
@@ -48,7 +60,7 @@ export default function Banner() {
         }
       );
       const trailer = res.data.results.find(
-        (v: any) => v.type === "Trailer" && v.site === "YouTube"
+        (v) => v.type === "Trailer" && v.site === "YouTube"
       );
       if (trailer) {
         setTrailerKey(trailer.key);
@@ -59,13 +71,13 @@ export default function Banner() {
     }
   };
 
-    const goToDetails = (id: string, mediaType: string) => {
-        const route = mediaType === "tv" ? "tvshow" : "movie";
-        router.push(`/${route}/${id}`);
-    };
+  const goToDetails = (id: number, mediaType: "movie" | "tv") => {
+    const route = mediaType === "tv" ? "tvshow" : "movie";
+    router.push(`/${route}/${id}`);
+  };
 
   return (
-    <div className="w-full h-screen relative">
+    <div className="w-full relative">
       <Swiper
         modules={[Autoplay, Pagination, Navigation]}
         spaceBetween={0}
@@ -74,14 +86,14 @@ export default function Banner() {
         autoplay={{ delay: 4000, disableOnInteraction: false }}
         pagination={{ clickable: true }}
         navigation
-        className="h-full w-full"
+        className="w-full h-[60vh] sm:h-[70vh] md:h-screen"
       >
-        {trending.map((item: any) => {
-          const title = item.title || item.name;
-          const mediaType = item.media_type; // "movie" or "tv"
+        {trending.map((item) => {
+          const title = "title" in item ? item.title : item.name;
+          const mediaType = item.media_type;
           return (
             <SwiperSlide key={item.id}>
-              <div className="relative w-full h-screen">
+              <div className="relative w-full h-[60vh] sm:h-[70vh] md:h-screen">
                 <Image
                   src={`https://image.tmdb.org/t/p/original${item.backdrop_path}`}
                   alt={title}
@@ -89,27 +101,31 @@ export default function Banner() {
                   className="object-cover"
                   priority
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
                 <motion.div
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8 }}
-                  className="absolute bottom-20 left-5 md:left-10 max-w-[90%] md:max-w-[60%] text-white space-y-4"
+                  className="absolute bottom-4 sm:bottom-10 left-4 sm:left-8 md:left-10 max-w-[90%] sm:max-w-[70%] md:max-w-[60%] text-white space-y-2 sm:space-y-4"
                 >
-                  <h2 className="text-3xl md:text-6xl font-extrabold">{title}</h2>
-                  <p className="text-sm md:text-lg line-clamp-3">{item.overview}</p>
-                  <p className="text-yellow-400 font-semibold">
+                  <h2 className="text-xl sm:text-3xl md:text-6xl font-extrabold leading-tight">
+                    {title}
+                  </h2>
+                  <p className="text-xs sm:text-sm md:text-lg line-clamp-3">
+                    {item.overview}
+                  </p>
+                  <p className="text-yellow-400 font-semibold text-sm sm:text-base">
                     ⭐ {item.vote_average?.toFixed(1)} / 10
                   </p>
-                  <div className="flex space-x-4 mt-4">
+                  <div className="flex flex-col sm:flex-row sm:space-x-4 space-y-2 sm:space-y-0 mt-2 sm:mt-4">
                     <button
-                      className="bg-white text-black px-4 py-2 rounded-md font-bold hover:bg-gray-300 transition"
+                      className="bg-white text-black px-3 sm:px-4 py-1 sm:py-2 rounded-md font-bold hover:bg-gray-300 transition text-sm sm:text-base"
                       onClick={() => playTrailer(item.id, mediaType)}
                     >
                       ▶ Play
                     </button>
                     <button
-                      className="bg-gray-700/80 text-white px-4 py-2 rounded-md font-bold hover:bg-gray-600 transition"
+                      className="bg-gray-700/80 text-white px-3 sm:px-4 py-1 sm:py-2 rounded-md font-bold hover:bg-gray-600 transition text-sm sm:text-base"
                       onClick={() => goToDetails(item.id, mediaType)}
                     >
                       ℹ More Info
