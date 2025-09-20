@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
 import { AuthOption } from "@/lib/auth"; // adjust path as needed
 
-export default NextAuth(AuthOption);
+const handler = NextAuth(AuthOption);
+export { handler as GET, handler as POST };
